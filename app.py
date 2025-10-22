@@ -1,7 +1,7 @@
-# app.py (antes api.py)
+# app.py
 from flask import Flask, request, jsonify
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import os
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -12,10 +12,10 @@ app = Flask(__name__)
 CORS(app)
 
 def get_db_connection():
-    """Conectar a la base de datos PostgreSQL"""
-    conn = psycopg2.connect(
+    """Conectar a la base de datos PostgreSQL usando psycopg3"""
+    conn = psycopg.connect(
         host=os.getenv('DB_HOST'),
-        database=os.getenv('DB_NAME'),
+        dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         port=os.getenv('DB_PORT', 5432)
@@ -29,7 +29,8 @@ def home():
         "version": "1.0",
         "endpoints": {
             "consultar_documento": "/consultar-documento (POST)",
-            "consultar_multiples": "/consultar-multiples (POST)"
+            "consultar_multiples": "/consultar-multiples (POST)",
+            "health": "/health (GET)"
         }
     })
 
@@ -44,7 +45,7 @@ def consultar_documento():
             return jsonify({"error": "Documento requerido"}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor(row_factory=dict_row)
         
         cur.execute("""
             SELECT documento_numero, inscripcion_aprobada 
@@ -83,8 +84,9 @@ def consultar_multiples():
             return jsonify({"error": "Lista de documentos requerida"}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor(row_factory=dict_row)
         
+        # Crear placeholders para la consulta IN
         placeholders = ','.join(['%s'] * len(documentos))
         query = f"""
             SELECT documento_numero, inscripcion_aprobada 
